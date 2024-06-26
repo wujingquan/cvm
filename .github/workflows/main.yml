@@ -40,16 +40,12 @@ jobs:
         prerelease: false
     # Go build exe 命令
     - name: Build exe
-      run: go build -o switchENV.exe
+      run: go build -o cvm.exe
       env:
         GOOS: ${{ matrix.goos }}
         GOARCH: ${{ matrix.goarch }}
         CGO_ENABLED: 0
     
-    # exe文件压缩一下 减少体积
-    - name: Packaging...
-      run: tar czf switchENV-${{ matrix.goos }}-${{ steps.get_version.outputs.VERSION }}.tgz switchENV.exe
-      
     # 上传到release-asset 用户就可以在release页面下载了
     - name: Uploading assets...
       id: upload-release-asset 
@@ -58,6 +54,6 @@ jobs:
         GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
       with:
         upload_url: ${{ steps.create_release.outputs.upload_url }} # 这里是create_release步骤输出的参数
-        asset_path: ./switchENV-${{ matrix.goos }}-${{ steps.get_version.outputs.VERSION }}.tgz
-        asset_name: switchENV-${{ matrix.goos }}-${{ steps.get_version.outputs.VERSION }}.tgz
+        asset_path: ./cvm.exe
+        asset_name: cvm.exe
         asset_content_type: application/gzip
