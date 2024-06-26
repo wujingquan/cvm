@@ -1,0 +1,63 @@
+name: Go
+# 只有在打tag的时候执行该CI
+on:
+  push:
+    tags:
+    - v*
+    
+jobs:
+  build:
+    runs-on: ${{ matrix.os }}
+    # 声明策略，可以遍历在多环境、不同系统内循环构建 交叉编译
+    strategy:
+      matrix:
+        os: [ubuntu-latest]
+        goarch: [amd64]
+        goos: [windows]
+        
+    steps:
+    - uses: actions/checkout@v3
+    # 安装Go环境
+    - name: Set up Go
+      uses: actions/setup-go@v3
+      with:
+        go-version: 1.20.1
+    # 获取当前tag的版本
+    - name: Get version
+      id: get_version
+      run: echo ::set-output name=VERSION::${GITHUB_REF/refs\/tags\//}
+      
+    # 从该tag打上一个release标签(这里会output一些参数 后面才能使用)
+    - name: Create Release
+      id: create_release
+      uses: actions/create-release@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        tag_name: ${{ steps.get_version.outputs.VERSION }}
+        release_name: ${{ steps.get_version.outputs.VERSION }}
+        draft: false
+        prerelease: false
+    # Go build exe 命令
+    - name: Build exe
+      run: go build -o switchENV.exe
+      env:
+        GOOS: ${{ matrix.goos }}
+        GOARCH: ${{ matrix.goarch }}
+        CGO_ENABLED: 0
+    
+    # exe文件压缩一下 减少体积
+    - name: Packaging...
+      run: tar czf switchENV-${{ matrix.goos }}-${{ steps.get_version.outputs.VERSION }}.tgz switchENV.exe
+      
+    # 上传到release-asset 用户就可以在release页面下载了
+    - name: Uploading assets...
+      id: upload-release-asset 
+      uses: actions/upload-release-asset@v1
+      env:
+        GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+      with:
+        upload_url: ${{ steps.create_release.outputs.upload_url }} # 这里是create_release步骤输出的参数
+        asset_path: ./switchENV-${{ matrix.goos }}-${{ steps.get_version.outputs.VERSION }}.tgz
+        asset_name: switchENV-${{ matrix.goos }}-${{ steps.get_version.outputs.VERSION }}.tgz
+        asset_content_type: application/gzip
